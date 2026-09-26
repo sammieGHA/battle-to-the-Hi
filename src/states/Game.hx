@@ -5,31 +5,79 @@ import flixel.FlxG;
 import flixel.FlxState;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.text.FlxText;
+import flixel.ui.FlxButton;
 import flixel.util.FlxColor;
 import objects.Warrior;
 
 class Game extends FlxState {
-    var warriors:FlxTypedGroup<Warrior> = new FlxTypedGroup<Warrior>();
-    var warrior:Warrior;
+	private var warriors:FlxTypedGroup<Warrior> = new FlxTypedGroup<Warrior>();
+	private var draggedWarrior:Warrior;
 
 	private var camGame:FlxCamera;
 	private var camHUD:FlxCamera;
 
+	private var clearButton:FlxButton;
+
     override function create() {
         super.create();
 
-		initCameras();
+		add(warriors);
+		Warrior.group = warriors;
 
-        warrior = new Warrior(20, 20);
-        add(warrior);
+		initCameras();
 		createHUD();
     }
 
     override function update(dt:Float) {
         super.update(dt);
 
-        testingPurposes();
-    }
+		if (!FlxG.mouse.overlaps(clearButton)) {
+			if (FlxG.mouse.justPressed) {
+				warriors.add(new Warrior(FlxG.mouse.x - 16, FlxG.mouse.y - 16, Red));
+			}
+
+			if (FlxG.mouse.justPressedRight) {
+				warriors.add(new Warrior(FlxG.mouse.x - 16, FlxG.mouse.y - 16, Blue));
+			}
+
+			handleDragging();
+		}
+	}
+
+	private function handleDragging() {
+		if (FlxG.mouse.justPressedMiddle) {
+			draggedWarrior = getWarriorUnderMouse();
+			if (draggedWarrior != null)
+				draggedWarrior.startDrag();
+		}
+
+		if (FlxG.mouse.justReleasedMiddle && draggedWarrior != null) {
+			draggedWarrior.stopDrag();
+			draggedWarrior = null;
+		}
+	}
+
+	private function getWarriorUnderMouse():Warrior {
+		var mouseWorld = FlxG.mouse.getWorldPosition(camGame);
+		var closest:Warrior = null;
+		var closestDistSq:Float = Math.POSITIVE_INFINITY;
+
+		warriors.forEachAlive((w:Warrior) -> {
+			if (w.overlapsPoint(mouseWorld)) {
+				var dx = w.getMidpoint().x - mouseWorld.x;
+				var dy = w.getMidpoint().y - mouseWorld.y;
+				var distSq = dx * dx + dy * dy;
+
+				if (distSq < closestDistSq) {
+					closestDistSq = distSq;
+					closest = w;
+				}
+			}
+		});
+
+		mouseWorld.put();
+		return closest;
+	}
 
 	private function initCameras() {
 		camGame = new FlxCamera(0, 0, FlxG.width, FlxG.height, 1);
@@ -46,18 +94,13 @@ class Game extends FlxState {
 		var versionText = new FlxText(8, FlxG.height - 25, 0, 'Version ${openfl.Lib.application.meta.get("version")}', 16);
 		versionText.font = Paths.font('pixel');
 		add(versionText);
-	}
+		clearButton = new FlxButton(10, 10, "Clear Warriors", () -> {
+			warriors.forEachAlive((w:Warrior) -> w.kill());
+			warriors.clear();
+		});
 
-    /**
-     * THIS IS FOR TESTING
-     * REMOVE ONCE EVERYTHINGS MORE FINISHED LOL
-     */
-    private function testingPurposes() {
-        if (FlxG.keys.justPressed.ONE)
-            warrior.play('idle', true);
-        if (FlxG.keys.justPressed.TWO)
-            warrior.play('walk', true);
-        if (FlxG.keys.justPressed.THREE)
-            warrior.die();
-    }
+		add(clearButton).camera = camHUD;
+
+		versionText.camera = camHUD;
+	}
 }
