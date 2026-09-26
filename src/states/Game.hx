@@ -44,7 +44,7 @@ class Game extends FlxState {
 
 	private function createHUD() {
 		var versionText = new FlxText(8, FlxG.height - 25, 0, 'Version ${openfl.Lib.application.meta.get("version")}', 16);
-		versionText.font = 'res/data/fonts/pixel.ttf';
+		versionText.font = Paths.font('pixel');
 		add(versionText);
 	}
 

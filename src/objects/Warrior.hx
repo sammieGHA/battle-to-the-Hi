@@ -9,7 +9,7 @@ class Warrior extends DamageableSprite {
     public function new(x:Float, y:Float) {
         super(x, y);
 
-        loadGraphic('res/images/warrior.png', true, 32, 32);
+		loadGraphic(Paths.image('warrior'), true, 32, 32);
         antialiasing = false;
 
         animation.add('idle', [0, 1], frameRate, true);
