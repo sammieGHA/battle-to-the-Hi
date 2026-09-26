@@ -9,6 +9,6 @@ class Main extends Sprite
 	{
 		super();
 		
-		trace('Ay da project works!');
+		addChild(new FlxGame(0, 0, states.Game, 60, 60, true, false));
 	}
 }
