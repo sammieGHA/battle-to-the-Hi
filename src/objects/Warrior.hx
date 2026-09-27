@@ -15,6 +15,7 @@ enum WarriorColor {
 
 enum WarriorState {
 	Idle;
+	Wandering;
 	Seeking;
 	Attacking;
 }
@@ -33,6 +34,17 @@ class Warrior extends DamageableSprite {
 	public var minDamage:Int = 5;
 	public var maxDamage:Int = 10;
 
+	public var wanderSpeed:Float = 20;
+	public var minIdleTime:Float = 1;
+	public var maxIdleTime:Float = 3;
+	public var minWanderTime:Float = .8;
+	public var maxWanderTime:Float = 2.0;
+
+	private var idleTimer:Float = 0;
+	private var idleDuration:Float = 0;
+	private var wanderTimer:Float = 0;
+	private var wanderAngle:Float = 0;
+
 	private var state:WarriorState = Idle;
 	private var target:Warrior;
 	private var attackTimer:Float = 0;
@@ -40,6 +52,9 @@ class Warrior extends DamageableSprite {
 
 	private var searchInterval:Float = .4;
 	private var searchTimer:Float = 0;
+
+	private var separationRadius:Float = 16;
+	private var separationForce:Float = 50;
 
 	public function new(x:Float, y:Float, color:WarriorColor) {
         super(x, y);
@@ -58,16 +73,54 @@ class Warrior extends DamageableSprite {
 
         play('idle', true);
 		searchTimer = Math.random() * searchInterval;
+		idleDuration = FlxG.random.float(minIdleTime, maxIdleTime);
 	}
 
 	override function update(dt:Float) {
 		if (isDragged) {
-			setPosition(FlxG.mouse.x - width / 2, FlxG.mouse.y - height / 2);
+			var pos = FlxG.mouse.getWorldPosition(states.Game.camGame);
+			setPosition(pos.x - width / 2, pos.y - height / 2);
+			pos.put();
 		} else if (!isDead) {
 			updateAI(dt);
+			applySeparation(dt);
 		}
 
 		super.update(dt);
+	}
+
+	private function applySeparation(dt:Float) {
+		if (group == null)
+			return;
+
+		var px:Float = 0;
+		var py:Float = 0;
+		var neighbors = 0;
+		var radiusSqrt = separationRadius * separationRadius;
+
+		group.forEachAlive((w:Warrior) -> {
+			if (w == this || w.isDead || w.isDragged)
+				return;
+
+			var dx = x - w.x;
+			var dy = y - w.y;
+			var distSq = dx * dx + dy * dy;
+
+			if (distSq < radiusSqrt && distSq > 0) {
+				var dist = Math.sqrt(distSq);
+				px += dx / dist;
+				py += dy / dist;
+				neighbors++;
+			}
+		});
+
+		if (neighbors > 0) {
+			px /= neighbors;
+			py /= neighbors;
+
+			x += px * separationForce * dt;
+			y += py * separationForce * dt;
+		}
 	}
 
 	public function startDrag() {
@@ -99,12 +152,7 @@ class Warrior extends DamageableSprite {
 		}
 
 		if (target == null) {
-			if (state != Idle) {
-				state = Idle;
-				velocity.set(0, 0);
-				play('idle');
-			}
-
+			updateWander(dt);
 			return;
 		}
 
@@ -126,12 +174,55 @@ class Warrior extends DamageableSprite {
 		}
 	}
 
+	override function die() {
+		super.die();
+
+		FlxG.sound.play(Paths.sound('die'));
+	}
+
+	private function updateWander(dt:Float) {
+		switch state {
+			case Idle:
+				idleTimer += dt;
+				if (idleTimer >= idleDuration)
+					startWandering();
+			case Wandering:
+				wanderTimer -= dt;
+				if (wanderTimer <= 0)
+					startIdling();
+				else
+					flipX = velocity.x < 0;
+			default:
+				startIdling();
+		}
+	}
+
+	private function startIdling() {
+		state = Idle;
+		idleTimer = 0;
+		idleDuration = FlxG.random.float(minIdleTime, maxIdleTime);
+		velocity.set(0, 0);
+		play('idle');
+	}
+
+	private function startWandering() {
+		state = Wandering;
+		wanderTimer = FlxG.random.float(minWanderTime, maxWanderTime);
+
+		wanderAngle = FlxG.random.float(0, Math.PI * 2);
+		velocity.set(Math.cos(wanderAngle) * wanderSpeed, Math.sin(wanderAngle) * wanderSpeed);
+
+		play('walk');
+	}
+
 	private function handleAttack(dt:Float) {
 		attackTimer -= dt;
 
 		if (attackTimer <= 0) {
 			attackTimer = attackCooldown;
 			play('punch', true);
+
+			FlxG.sound.play(Paths.sound('hit'));
 
 			var dmg = FlxG.random.int(minDamage, maxDamage);
 			target.hurt(dmg);

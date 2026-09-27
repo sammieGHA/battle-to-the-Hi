@@ -7,14 +7,15 @@ import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.text.FlxText;
 import flixel.ui.FlxButton;
 import flixel.util.FlxColor;
+import flixel.util.FlxSort;
 import objects.Warrior;
 
 class Game extends FlxState {
 	private var warriors:FlxTypedGroup<Warrior> = new FlxTypedGroup<Warrior>();
 	private var draggedWarrior:Warrior;
 
-	private var camGame:FlxCamera;
-	private var camHUD:FlxCamera;
+	static public var camGame:FlxCamera;
+	static public var camHUD:FlxCamera;
 
 	private var clearButton:FlxButton;
 
@@ -33,15 +34,31 @@ class Game extends FlxState {
 
 		if (!FlxG.mouse.overlaps(clearButton)) {
 			if (FlxG.mouse.justPressed) {
-				warriors.add(new Warrior(FlxG.mouse.x - 16, FlxG.mouse.y - 16, Red));
+				var pos = FlxG.mouse.getWorldPosition(camGame);
+				warriors.add(new Warrior(pos.x - 16, pos.y - 16, Red));
+				pos.put();
 			}
 
 			if (FlxG.mouse.justPressedRight) {
-				warriors.add(new Warrior(FlxG.mouse.x - 16, FlxG.mouse.y - 16, Blue));
+				var pos = FlxG.mouse.getWorldPosition(camGame);
+				warriors.add(new Warrior(pos.x - 16, pos.y - 16, Blue));
+				pos.put();
 			}
 
 			handleDragging();
+			warriors.sort(FlxSort.byY, FlxSort.ASCENDING); // WOW???
 		}
+		var speed = FlxG.keys.pressed.SHIFT ? 10 : 5;
+
+		if (FlxG.keys.anyPressed([A, LEFT]))
+			camGame.scroll.x -= speed;
+		else if (FlxG.keys.anyPressed([D, RIGHT]))
+			camGame.scroll.x += speed;
+
+		if (FlxG.keys.anyPressed([W, UP]))
+			camGame.scroll.y -= speed;
+		else if (FlxG.keys.anyPressed([S, DOWN]))
+			camGame.scroll.y += speed;
 	}
 
 	private function handleDragging() {
