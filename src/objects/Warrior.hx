@@ -4,6 +4,7 @@ import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.graphics.FlxGraphic;
 import flixel.group.FlxGroup.FlxTypedGroup;
+import flixel.math.FlxPoint;
 import flixel.math.FlxVelocity;
 import flixel.util.FlxColor;
 import objects.Barrier;
@@ -171,7 +172,7 @@ class Warrior extends DamageableSprite {
 		flipX = target.x < x;
 		if (distSqrt > attackRange * attackRange) {
 			state = Seeking;
-			FlxVelocity.moveTowardsObject(this, target, speed);
+			moveTowardsTarget(target);
 			play('walk');
 		} else {
 			if (state != Attacking) {
@@ -182,6 +183,60 @@ class Warrior extends DamageableSprite {
 			velocity.set(0, 0);
 			handleAttack(dt);
 		}
+	}
+
+	private function moveTowardsTarget(target:Warrior) {
+		var dx = target.getMidpoint().x - getMidpoint().x;
+		var dy = target.getMidpoint().y - getMidpoint().y;
+		var dist = Math.sqrt(dx * dx + dy * dy);
+		if (dist == 0)
+			return;
+
+		var dirx = dx / dist;
+		var diry = dy / dist;
+
+		var probedist = 2;
+		var midx = getMidpoint().x;
+		var midy = getMidpoint().y;
+
+		if (isBlocked(midx + dirx + probedist, midy + diry * probedist)) {
+			var perpx = -diry;
+			var perpy = dirx;
+
+			var leftblocked = isBlocked(midx + perpx * probedist, midy + perpy * probedist);
+			var rightblocked = isBlocked(midx - perpx * probedist, midy - perpy * probedist);
+
+			if (!leftblocked) {
+				dirx += perpx;
+				diry += perpy;
+			} else if (!rightblocked) {
+				dirx -= perpx;
+				diry -= perpy;
+			}
+
+			var len = Math.sqrt(dirx * dirx + diry * diry);
+			if (len > 0) {
+				dirx /= len;
+				diry /= len;
+			}
+		}
+
+		velocity.set(dirx * speed, diry * speed);
+	}
+
+	private function isBlocked(px:Float, py:Float):Bool {
+		if (barrierGroup == null)
+			return false;
+
+		var point = FlxPoint.get(px, py);
+		var blocked = false;
+
+		barrierGroup.forEachAlive((b:Barrier) -> {
+			blocked = b.overlapsPoint(point);
+		});
+
+		point.put();
+		return blocked;
 	}
 
 	override function die() {

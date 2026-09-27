@@ -8,6 +8,9 @@ class Barrier extends FlxSprite {
         super(x, y);
 
         loadGraphic(Paths.image('barrier'), true, 16, 16);
+		setSize(20, 20);
+		offset.set((frameWidth - width) / 2, frameHeight - height);
+
         antialiasing = false;
         immovable = true;
     }
