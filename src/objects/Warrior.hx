@@ -6,6 +6,7 @@ import flixel.graphics.FlxGraphic;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.math.FlxVelocity;
 import flixel.util.FlxColor;
+import objects.Barrier;
 import objects.overridable.DamageableSprite;
 
 enum WarriorColor {
@@ -18,11 +19,13 @@ enum WarriorState {
 	Wandering;
 	Seeking;
 	Attacking;
+	Building;
 }
 
 class Warrior extends DamageableSprite {
 	private static var graphicCache:Map<WarriorColor, FlxGraphic> = new Map();
 	public static var group:FlxTypedGroup<Warrior>;
+	public static var barrierGroup:FlxTypedGroup<Barrier>;
 
 	public var w_color(default, null):WarriorColor;
 	public var isDragged(default, null):Bool = false;
@@ -38,7 +41,10 @@ class Warrior extends DamageableSprite {
 	public var minIdleTime:Float = 1;
 	public var maxIdleTime:Float = 3;
 	public var minWanderTime:Float = .8;
-	public var maxWanderTime:Float = 2.0;
+	public var maxWanderTime:Float = 4.0;
+
+	public var buildChance:Float = 2.5;
+	public var buildDuration:Float = 2;
 
 	private var idleTimer:Float = 0;
 	private var idleDuration:Float = 0;
@@ -56,6 +62,8 @@ class Warrior extends DamageableSprite {
 	private var separationRadius:Float = 16;
 	private var separationForce:Float = 50;
 
+	private var buildTimer:Float = 0;
+
 	public function new(x:Float, y:Float, color:WarriorColor) {
         super(x, y);
 
@@ -70,6 +78,7 @@ class Warrior extends DamageableSprite {
         animation.add('death', [4, 5, 6, 7, 8], frameRate, false);
 		animation.add('punch', [9, 10, 11, 12], frameRate, false);
 		animation.add('dragged', [13, 14], frameRate, true);
+		animation.add('build', [15, 16, 17], frameRate, true);
 
         play('idle', true);
 		searchTimer = Math.random() * searchInterval;
@@ -130,6 +139,7 @@ class Warrior extends DamageableSprite {
 		isDragged = true;
 		target = null;
 		state = Idle;
+		buildTimer = 0;
 		velocity.set(0, 0);
 		play('dragged', true);
 	}
@@ -188,13 +198,44 @@ class Warrior extends DamageableSprite {
 					startWandering();
 			case Wandering:
 				wanderTimer -= dt;
-				if (wanderTimer <= 0)
-					startIdling();
-				else
+				if (wanderTimer <= 0) {
+					if (FlxG.random.bool(buildChance))
+						startBuilding();
+					else
+						startIdling();
+				} else {
 					flipX = velocity.x < 0;
+				}
+			case Building:
+				buildTimer -= dt;
+				if (buildTimer <= 0)
+					finishBuilding();
 			default:
 				startIdling();
 		}
+	}
+
+	private function startBuilding() {
+		state = Building;
+		velocity.set(0, 0);
+		buildTimer = buildDuration;
+
+		play('build', true);
+	}
+
+	private function finishBuilding() {
+		spawnBarrier();
+		startIdling();
+	}
+
+	private function spawnBarrier() {
+		if (barrierGroup == null)
+			return;
+
+		var offsetX = flipX ? -20 : 20;
+		var barrier = new Barrier(x + offsetX, y + 8);
+
+		barrierGroup.add(barrier);
 	}
 
 	private function startIdling() {

@@ -8,10 +8,12 @@ import flixel.text.FlxText;
 import flixel.ui.FlxButton;
 import flixel.util.FlxColor;
 import flixel.util.FlxSort;
+import objects.Barrier;
 import objects.Warrior;
 
 class Game extends FlxState {
 	private var warriors:FlxTypedGroup<Warrior> = new FlxTypedGroup<Warrior>();
+	private var barriers:FlxTypedGroup<Barrier> = new FlxTypedGroup<Barrier>();
 	private var draggedWarrior:Warrior;
 
 	static public var camGame:FlxCamera;
@@ -22,8 +24,11 @@ class Game extends FlxState {
     override function create() {
         super.create();
 
+		add(barriers);
 		add(warriors);
+
 		Warrior.group = warriors;
+		Warrior.barrierGroup = barriers;
 
 		initCameras();
 		createHUD();
@@ -59,6 +64,9 @@ class Game extends FlxState {
 			camGame.scroll.y -= speed;
 		else if (FlxG.keys.anyPressed([S, DOWN]))
 			camGame.scroll.y += speed;
+		//
+
+		FlxG.collide(warriors, barriers);
 	}
 
 	private function handleDragging() {
